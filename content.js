@@ -113,7 +113,7 @@ function findBlockersAndClear() {
   }, 100);
 }
 
-// Listen to changes of global state
+// Listening for changes of global state
 // The global state is needed to control whether the extension enabled or disabled
 chrome.storage.onChanged.addListener(function (changes, areaName) {
   if (areaName === "local" && changes.isActiveState) {
