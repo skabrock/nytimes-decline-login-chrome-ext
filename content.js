@@ -1,4 +1,5 @@
 const OVERLAY_DETECTION_ATTEMPTS = 100;
+let timeInterval;
 
 const actions = {
   hide: "hide",
@@ -56,10 +57,26 @@ function clearBlockers() {
   });
 }
 
+function restoreBlockers() {
+  runSelectorHandler(getSelectorsByAction(actions.hide), ({ style }) => {
+    style.display = null;
+  });
+
+  runSelectorHandler(getSelectorsByAction(actions.scroll), ({ style }) => {
+    style.overflowY = null;
+  });
+}
+
+async function getIsActiveState() {
+  const { isActiveState } = await chrome.storage.local.get("isActiveState");
+
+  return isActiveState !== undefined ? isActiveState : true;
+}
+
 function init() {
   const iteration = 0;
 
-  const timeInterval = setInterval(function () {
+  timeInterval = setInterval(() => {
     const overlay = detectBlockerOverlay();
 
     if (overlay || ++iteration > OVERLAY_DETECTION_ATTEMPTS) {
@@ -72,4 +89,23 @@ function init() {
   }, 100);
 }
 
-window.onload = init;
+chrome.storage.onChanged.addListener(function (changes, areaName) {
+  if (areaName === "local" && changes.isActiveState) {
+    if (changes.isActiveState.newValue) {
+      init();
+    } else {
+      clearInterval(timeInterval);
+      restoreBlockers();
+    }
+  }
+});
+
+window.onload = async function () {
+  const isActiveState = await getIsActiveState();
+
+  if (!isActiveState) {
+    return;
+  }
+
+  init();
+};

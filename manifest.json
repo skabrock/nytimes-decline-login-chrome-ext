@@ -14,7 +14,11 @@
       "matches": ["https://www.nytimes.com/*"]
     }
   ],
-  "action": {},
-  "permissions": [],
-  "background": {}
+  "action": {
+    "default_title": "NY Times decline login\n\nLeft click to toggle extension"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage"]
 }
