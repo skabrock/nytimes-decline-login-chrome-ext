@@ -89,10 +89,14 @@ async function getIsActiveState() {
 }
 
 function findBlockersAndClear() {
+  // Add opacity for overlay before it appears
+  // If it doesn't appear, the rules will be removed after max overlay detection attempts are reached
+  // This script doesn't have to wait until the overlay appears unlike clearBlockers()
   addCSSRules();
   let iteration = 0;
 
   timeInterval = setInterval(() => {
+    // Looking for the main authorization element on the page
     const overlay = detectBlockerOverlay();
 
     if (++iteration > OVERLAY_DETECTION_ATTEMPTS) {
@@ -102,16 +106,21 @@ function findBlockersAndClear() {
 
     if (overlay) {
       clearInterval(timeInterval);
+      // Running the main cleaning function
+      // It uses inline styles and guaranteed cleanup unlike addCSSRules()
       clearBlockers();
     }
   }, 100);
 }
 
+// Listen to changes of global state
+// The global state is needed to control whether the extension enabled or disabled
 chrome.storage.onChanged.addListener(function (changes, areaName) {
   if (areaName === "local" && changes.isActiveState) {
     if (changes.isActiveState.newValue) {
       findBlockersAndClear();
     } else {
+      // Clearing all traces of the extension work if users has disabled it
       clearInterval(timeInterval);
       removeCSSRules();
       restoreBlockers();
@@ -120,8 +129,11 @@ chrome.storage.onChanged.addListener(function (changes, areaName) {
 });
 
 (async function () {
+  // Get the initial state of the extension
   const isActiveState = await getIsActiveState();
 
+  // Extension could be disabled before opening a target page
+  // Do nothing in this case
   if (!isActiveState) {
     return;
   }
