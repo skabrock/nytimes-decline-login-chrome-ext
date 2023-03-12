@@ -1,27 +1,7 @@
 const OVERLAY_DETECTION_ATTEMPTS = 100;
-let timeInterval;
+let overlayDetectionInterval;
 let styleElement;
-
-const actions = {
-  hide: "hide",
-  scroll: "scroll",
-};
-
-const rules = [
-  {
-    selector: "#app>div>div:last-child",
-    actions: [actions.hide],
-    prime: true,
-  },
-  {
-    selector: "#app>div>div:first-child>div:last-child",
-    actions: [actions.hide],
-  },
-  {
-    selector: "#app>div>div:first-child",
-    actions: [actions.scroll],
-  },
-];
+let isPageLoaded = false;
 
 function detectBlockerOverlay() {
   const primeSelector = rules.filter((rule) => rule.prime)[0].selector;
@@ -30,30 +10,21 @@ function detectBlockerOverlay() {
   return primeElement instanceof Element;
 }
 
-function runSelectorHandler(selectors, rule) {
-  selectors.forEach(function (selector) {
-    const element = document.querySelector(selector);
-
-    if (element instanceof Element) {
-      rule(element);
-    }
-  });
-}
-
-function getSelectorsByAction(action) {
-  return rules
-    .filter((rule) => rule.actions.includes(action))
-    .map((rule) => rule.selector);
-}
-
 function addCSSRules() {
-  const styleElementSelector = getSelectorsByAction(actions.hide).join(",");
-  const styleElementRules = "{opacity:0;display:none;}";
-  const styleElementContent = styleElementSelector + styleElementRules;
+  const styleElementContent = rules.reduce((css, rule) => {
+    css +=
+      rule.selector +
+      JSON.stringify(rule.action)
+        .replaceAll('"', "")
+        .replaceAll(",", ";")
+        .replaceAll("}", ";}");
+
+    return css;
+  }, "");
 
   styleElement = document.createElement("style");
   styleElement.innerText = styleElementContent;
-  document.body.appendChild(styleElement);
+  document.head.appendChild(styleElement);
 }
 
 function removeCSSRules() {
@@ -62,24 +33,29 @@ function removeCSSRules() {
   }
 }
 
-function clearBlockers() {
-  runSelectorHandler(getSelectorsByAction(actions.hide), ({ style }) => {
-    style.display = "none";
-  });
+function camelize(string) {
+  return string.replace(/-./g, (x) => x[1].toUpperCase());
+}
 
-  runSelectorHandler(getSelectorsByAction(actions.scroll), ({ style }) => {
-    style.overflowY = "scroll";
+function updateBlockers(value) {
+  const inlineRules = rules.filter((rule) => rule.inline);
+
+  inlineRules.forEach(({ selector, action }) => {
+    const element = document.querySelector(selector);
+
+    if (element instanceof Element) {
+      Object.keys(action).forEach((cssProperty) => {
+        const inlineProperty = camelize(cssProperty);
+        const inlineValue = value !== undefined ? value : action[cssProperty];
+
+        element.style[inlineProperty] = inlineValue;
+      });
+    }
   });
 }
 
 function restoreBlockers() {
-  runSelectorHandler(getSelectorsByAction(actions.hide), ({ style }) => {
-    style.display = null;
-  });
-
-  runSelectorHandler(getSelectorsByAction(actions.scroll), ({ style }) => {
-    style.overflowY = null;
-  });
+  updateBlockers(null);
 }
 
 async function getIsActiveState() {
@@ -89,26 +65,21 @@ async function getIsActiveState() {
 }
 
 function findBlockersAndClear() {
-  // Add opacity for overlay before it appears
-  // If it doesn't appear, the rules will be removed after max overlay detection attempts are reached
-  // This script doesn't have to wait until the overlay appears unlike clearBlockers()
-  addCSSRules();
   let iteration = 0;
 
-  timeInterval = setInterval(() => {
+  overlayDetectionInterval = setInterval(() => {
     // Looking for the main authorization element on the page
     const overlay = detectBlockerOverlay();
 
     if (++iteration > OVERLAY_DETECTION_ATTEMPTS) {
-      clearInterval(timeInterval);
+      clearInterval(overlayDetectionInterval);
       removeCSSRules();
     }
 
     if (overlay) {
-      clearInterval(timeInterval);
+      clearInterval(overlayDetectionInterval);
       // Running the main cleaning function
       // It uses inline styles and guaranteed cleanup unlike addCSSRules()
-      clearBlockers();
     }
   }, 100);
 }
@@ -121,7 +92,7 @@ chrome.storage.onChanged.addListener(function (changes, areaName) {
       findBlockersAndClear();
     } else {
       // Clearing all traces of the extension work if users has disabled it
-      clearInterval(timeInterval);
+      clearInterval(overlayDetectionInterval);
       removeCSSRules();
       restoreBlockers();
     }
@@ -129,14 +100,28 @@ chrome.storage.onChanged.addListener(function (changes, areaName) {
 });
 
 (async function () {
+  // Add opacity for overlay before it appears
+  // If it doesn't appear, the rules will be removed after max overlay detection attempts are reached
+  // This script doesn't have to wait until the overlay appears unlike updateBlockers()
+  addCSSRules();
+
+  window.addEventListener("load", () => {
+    isPageLoaded = true;
+  });
+
   // Get the initial state of the extension
   const isActiveState = await getIsActiveState();
 
   // Extension could be disabled before opening a target page
   // Do nothing in this case
   if (!isActiveState) {
+    removeCSSRules();
     return;
   }
 
-  findBlockersAndClear();
+  if (isPageLoaded) {
+    findBlockersAndClear();
+  } else {
+    window.addEventListener("load", findBlockersAndClear);
+  }
 })();
