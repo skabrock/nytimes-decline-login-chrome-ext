@@ -1,5 +1,6 @@
 const OVERLAY_DETECTION_ATTEMPTS = 100;
 let timeInterval;
+let styleElement;
 
 const actions = {
   hide: "hide",
@@ -45,13 +46,27 @@ function getSelectorsByAction(action) {
     .map((rule) => rule.selector);
 }
 
+function addCSSRules() {
+  const styleElementSelector = getSelectorsByAction(actions.hide).join(",");
+  const styleElementRules = "{opacity:0;display:none;}";
+  const styleElementContent = styleElementSelector + styleElementRules;
+
+  styleElement = document.createElement("style");
+  styleElement.innerText = styleElementContent;
+  document.body.appendChild(styleElement);
+}
+
+function removeCSSRules() {
+  if (styleElement instanceof Element) {
+    styleElement.remove();
+  }
+}
+
 function clearBlockers() {
-  // hide elements
   runSelectorHandler(getSelectorsByAction(actions.hide), ({ style }) => {
     style.display = "none";
   });
 
-  // enable scroll
   runSelectorHandler(getSelectorsByAction(actions.scroll), ({ style }) => {
     style.overflowY = "scroll";
   });
@@ -73,17 +88,20 @@ async function getIsActiveState() {
   return isActiveState !== undefined ? isActiveState : true;
 }
 
-function init() {
-  const iteration = 0;
+function findBlockersAndClear() {
+  addCSSRules();
+  let iteration = 0;
 
   timeInterval = setInterval(() => {
     const overlay = detectBlockerOverlay();
 
-    if (overlay || ++iteration > OVERLAY_DETECTION_ATTEMPTS) {
+    if (++iteration > OVERLAY_DETECTION_ATTEMPTS) {
       clearInterval(timeInterval);
+      removeCSSRules();
     }
 
     if (overlay) {
+      clearInterval(timeInterval);
       clearBlockers();
     }
   }, 100);
@@ -92,20 +110,21 @@ function init() {
 chrome.storage.onChanged.addListener(function (changes, areaName) {
   if (areaName === "local" && changes.isActiveState) {
     if (changes.isActiveState.newValue) {
-      init();
+      findBlockersAndClear();
     } else {
       clearInterval(timeInterval);
+      removeCSSRules();
       restoreBlockers();
     }
   }
 });
 
-window.onload = async function () {
+(async function () {
   const isActiveState = await getIsActiveState();
 
   if (!isActiveState) {
     return;
   }
 
-  init();
-};
+  findBlockersAndClear();
+})();
