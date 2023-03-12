@@ -15,4 +15,8 @@ const rules = [
     selector: ".css-mcm29f",
     action: { position: "initial", overflow: "initial" },
   },
+  {
+    selector: "#site-content",
+    action: { position: "initial !important" },
+  },
 ];
