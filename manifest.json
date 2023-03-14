@@ -1,7 +1,7 @@
 {
   "name": "NY Times subscription-free reading",
   "description": "Hide all the content blockers. Allows to read The New York Times articles without subscription pop-ups",
-  "version": "1.2",
+  "version": "1.3",
   "manifest_version": 3,
   "icons": {
     "128": "images/icon-128.png",
