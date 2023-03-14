@@ -1,6 +1,6 @@
 {
-  "name": "NY Times decline login",
-  "description": "Hide all the content blockers. Allows to read The New York Times articles without login popup",
+  "name": "NY Times subscription-free reading",
+  "description": "Hide all the content blockers. Allows to read The New York Times articles without subscription pop-ups",
   "version": "1.2",
   "manifest_version": 3,
   "icons": {
@@ -15,7 +15,7 @@
     }
   ],
   "action": {
-    "default_title": "NY Times decline login\n\nLeft click to toggle extension"
+    "default_title": "NY Times subscription-free reading\n\nLeft click to toggle extension"
   },
   "background": {
     "service_worker": "background.js"
