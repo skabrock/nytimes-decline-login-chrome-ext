@@ -1,15 +1,15 @@
 const rules = [
   {
-    selector: "#app>div>div:last-child",
+    selector: "#gateway-content",
     action: { display: "none" },
   },
   {
-    selector: "#app>div>div:first-child>div:last-child",
+    selector: ".css-gx5sib",
     action: { display: "none" },
   },
   {
-    selector: "#app>div>div:first-child",
-    action: { "overflow-y": "scroll" },
+    selector: "#app>div:not([class])>div:first-child",
+    action: { "overflow-y": "auto" },
   },
   {
     selector: ".css-mcm29f",
